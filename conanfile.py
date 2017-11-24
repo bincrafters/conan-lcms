@@ -23,7 +23,12 @@ class LibnameConan(ConanFile):
         os.rename(extracted_dir, "sources")
 
     def build_visual_studio(self):
-        raise Exception('TODO')
+        with tools.chdir(os.path.join('sources', 'Projects', 'VC2012')):
+            cmd = tools.msvc_build_command(self.settings, 'lcms2.sln',
+                                           targets=['lcms2_DLL' if self.options.shared else 'lcms2_static'],
+                                           arch='Win32' if self.settings.arch == 'x86' else 'x64')
+            self.output.warn(cmd)
+            self.run(cmd)
 
     def build_configure(self):
         env_build = AutoToolsBuildEnvironment(self)
@@ -44,8 +49,17 @@ class LibnameConan(ConanFile):
             self.build_configure()
 
     def package(self):
-        with tools.chdir("sources"):
-            self.copy(pattern="COPYING")
+        self.copy(pattern="COPYING", src='sources')
+        if self.settings.compiler == 'Visual Studio':
+            self.copy(pattern='*.h', src=os.path.join('sources', 'include'), dst='include', keep_path=True)
+            if self.options.shared:
+                self.copy(pattern='*.lib', src=os.path.join('sources', 'bin'), dst='lib', keep_path=False)
+                self.copy(pattern='*.dll', src=os.path.join('sources', 'bin'), dst='bin', keep_path=False)
+            else:
+                self.copy(pattern='*.lib', src=os.path.join('sources', 'Lib', 'MS'), dst='lib', keep_path=False)
 
     def package_info(self):
-        self.cpp_info.libs = tools.collect_libs(self)
+        if self.settings.compiler == 'Visual Studio':
+            self.cpp_info.libs = ['lcms2' if self.options.shared else 'lcms2_static']
+        else:
+            self.cpp_info.libs = ['lcms2']
