@@ -1,6 +1,8 @@
-// #include <cpprest/json.h>
+#include "lcms2.h"
 
 int main()
 {
-    // const auto parsed_value = web::json::value::parse(U("-22"));
+    cmsUInt16Number linear[2] = { 0, 0xffff };
+    cmsToneCurve * curve = cmsBuildTabulatedToneCurve16(0, 2, linear);
+    cmsFreeToneCurve(curve);
 }
