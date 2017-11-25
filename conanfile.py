@@ -3,6 +3,7 @@
 
 from conans import ConanFile, tools, AutoToolsBuildEnvironment
 import os
+from xml.dom import minidom
 
 
 class LibnameConan(ConanFile):
@@ -24,8 +25,23 @@ class LibnameConan(ConanFile):
 
     def build_visual_studio(self):
         with tools.chdir(os.path.join('sources', 'Projects', 'VC2012')):
+            target = 'lcms2_DLL' if self.options.shared else 'lcms2_static'
+            vcxproj = os.path.join(target, '%s.vcxproj' % target)
+            dom = minidom.parse(vcxproj)
+            elements = dom.getElementsByTagName("RuntimeLibrary")
+            runtime_library = {'MT': 'MultiThreaded',
+                               'MTd': 'MultiThreadedDebug',
+                               'MD': 'MultiThreadedDLL',
+                               'MDd': 'MultiThreadedDebugDLL'}.get(str(self.settings.compiler.runtime))
+            for element in elements:
+                for child in element.childNodes:
+                    if child.nodeType == element.TEXT_NODE:
+                        child.replaceWholeText(runtime_library)
+            with open(vcxproj, 'w') as f:
+                f.write(dom.toprettyxml())
+
             cmd = tools.msvc_build_command(self.settings, 'lcms2.sln',
-                                           targets=['lcms2_DLL' if self.options.shared else 'lcms2_static'],
+                                           targets=[target],
                                            arch='Win32' if self.settings.arch == 'x86' else 'x64')
             self.output.warn(cmd)
             self.run(cmd)
