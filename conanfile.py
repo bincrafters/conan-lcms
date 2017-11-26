@@ -77,5 +77,7 @@ class LibnameConan(ConanFile):
     def package_info(self):
         if self.settings.compiler == 'Visual Studio':
             self.cpp_info.libs = ['lcms2' if self.options.shared else 'lcms2_static']
+            if self.options.shared:
+                self.cpp_info.defines.append('CMS_DLL')
         else:
             self.cpp_info.libs = ['lcms2']
