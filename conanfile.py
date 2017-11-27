@@ -41,8 +41,9 @@ class LibnameConan(ConanFile):
                 f.write(dom.toprettyxml())
 
             cmd = tools.msvc_build_command(self.settings, 'lcms2.sln',
-                                           targets=[target],
-                                           arch='Win32' if self.settings.arch == 'x86' else 'x64')
+                                           targets=[target])
+            if self.settings.arch == 'x86':
+                cmd = cmd.replace('/p:Platform="x86"', '/p:Platform="Win32"')
             self.output.warn(cmd)
             self.run(cmd)
 
