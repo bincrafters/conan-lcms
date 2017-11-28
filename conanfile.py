@@ -15,6 +15,8 @@ class LibnameConan(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False]}
     default_options = "shared=False"
+    exports = "FindLCMS2.cmake"
+    generators = "cmake"
 
     def source(self):
         extracted_dir = 'lcms2-%s' % self.version
@@ -66,6 +68,7 @@ class LibnameConan(ConanFile):
             self.build_configure()
 
     def package(self):
+        self.copy("FindLCMS2.cmake")
         self.copy(pattern="COPYING", src='sources')
         if self.settings.compiler == 'Visual Studio':
             self.copy(pattern='*.h', src=os.path.join('sources', 'include'), dst='include', keep_path=True)
