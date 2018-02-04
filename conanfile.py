@@ -43,10 +43,17 @@ class LcmsConan(ConanFile):
             with open(vcxproj, 'w') as f:
                 f.write(dom.toprettyxml())
 
-            cmd = tools.msvc_build_command(self.settings, 'lcms2.sln',
-                                           targets=[target])
+            vcvars_command = tools.vcvars_command(self.settings)
+            # sometimes upgrading from 2010 to 2012 project fails with non-error exit code
+            try:
+                self.run('%s && devenv lcms2.sln /upgrade' % vcvars_command)
+            except:
+                pass
+            # run build
+            cmd = tools.build_sln_command(self.settings, 'lcms2.sln', upgrade_project=False, targets=[target])
             if self.settings.arch == 'x86':
                 cmd = cmd.replace('/p:Platform="x86"', '/p:Platform="Win32"')
+            cmd = '%s && %s' % (vcvars_command, cmd)
             self.output.warn(cmd)
             self.run(cmd)
 
