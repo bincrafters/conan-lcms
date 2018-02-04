@@ -6,27 +6,28 @@ import os
 from xml.dom import minidom
 
 
-class LibnameConan(ConanFile):
+class LcmsConan(ConanFile):
     name = "lcms"
     version = "2.9"
     url = "https://github.com/bincrafters/conan-lcms"
-    description = "Keep it short"
-    license = "https://github.com/someauthor/somelib/blob/master/LICENSES"
+    description = "A free, open source, CMM engine."
+    license = "MIT"
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False]}
     default_options = "shared=False"
-    exports = "FindLCMS2.cmake"
+    exports = ["LICENSE.md"]
+    exports_sources = ["FindLCMS2.cmake"]
     generators = "cmake"
+
+    source_subfolder = "source_subfolder"
 
     def source(self):
         extracted_dir = 'lcms2-%s' % self.version
-        archive_name = "%s.tar.gz" % extracted_dir
-        source_url = "https://downloads.sourceforge.net/project/lcms/lcms/%s/%s" % (self.version, archive_name)
-        tools.get(source_url)
-        os.rename(extracted_dir, "sources")
+        tools.get("https://downloads.sourceforge.net/project/lcms/lcms/%s/lcms2-%s.tar.gz" % (self.version, self.version))
+        os.rename(extracted_dir, self.source_subfolder)
 
     def build_visual_studio(self):
-        with tools.chdir(os.path.join('sources', 'Projects', 'VC2012')):
+        with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2012')):
             target = 'lcms2_DLL' if self.options.shared else 'lcms2_static'
             vcxproj = os.path.join(target, '%s.vcxproj' % target)
             dom = minidom.parse(vcxproj)
@@ -51,7 +52,7 @@ class LibnameConan(ConanFile):
 
     def build_configure(self):
         env_build = AutoToolsBuildEnvironment(self)
-        with tools.chdir('sources'):
+        with tools.chdir(self.source_subfolder):
             args = ['prefix=%s' % self.package_folder]
             if self.options.shared:
                 args.extend(['--disable-static', '--enable-shared'])
@@ -69,14 +70,14 @@ class LibnameConan(ConanFile):
 
     def package(self):
         self.copy("FindLCMS2.cmake")
-        self.copy(pattern="COPYING", src='sources')
+        self.copy(pattern="COPYING", dst="licenses", src=self.source_subfolder)
         if self.settings.compiler == 'Visual Studio':
-            self.copy(pattern='*.h', src=os.path.join('sources', 'include'), dst='include', keep_path=True)
+            self.copy(pattern='*.h', src=os.path.join(self.source_subfolder, 'include'), dst='include', keep_path=True)
             if self.options.shared:
-                self.copy(pattern='*.lib', src=os.path.join('sources', 'bin'), dst='lib', keep_path=False)
-                self.copy(pattern='*.dll', src=os.path.join('sources', 'bin'), dst='bin', keep_path=False)
+                self.copy(pattern='*.lib', src=os.path.join(self.source_subfolder, 'bin'), dst='lib', keep_path=False)
+                self.copy(pattern='*.dll', src=os.path.join(self.source_subfolder, 'bin'), dst='bin', keep_path=False)
             else:
-                self.copy(pattern='*.lib', src=os.path.join('sources', 'Lib', 'MS'), dst='lib', keep_path=False)
+                self.copy(pattern='*.lib', src=os.path.join(self.source_subfolder, 'Lib', 'MS'), dst='lib', keep_path=False)
 
     def package_info(self):
         if self.settings.compiler == 'Visual Studio':
