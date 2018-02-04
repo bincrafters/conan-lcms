@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from conans import ConanFile, tools, AutoToolsBuildEnvironment
+from conans import ConanFile, tools, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment
 import os
 from xml.dom import minidom
 
@@ -27,35 +27,37 @@ class LcmsConan(ConanFile):
         os.rename(extracted_dir, self.source_subfolder)
 
     def build_visual_studio(self):
-        with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2012')):
-            target = 'lcms2_DLL' if self.options.shared else 'lcms2_static'
-            vcxproj = os.path.join(target, '%s.vcxproj' % target)
-            dom = minidom.parse(vcxproj)
-            elements = dom.getElementsByTagName("RuntimeLibrary")
-            runtime_library = {'MT': 'MultiThreaded',
-                               'MTd': 'MultiThreadedDebug',
-                               'MD': 'MultiThreadedDLL',
-                               'MDd': 'MultiThreadedDebugDLL'}.get(str(self.settings.compiler.runtime))
-            for element in elements:
-                for child in element.childNodes:
-                    if child.nodeType == element.TEXT_NODE:
-                        child.replaceWholeText(runtime_library)
-            with open(vcxproj, 'w') as f:
-                f.write(dom.toprettyxml())
+        env_build = VisualStudioBuildEnvironment(self)
+        with tools.environment_append(env_build.vars):
+            with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2013')):
+                target = 'lcms2_DLL' if self.options.shared else 'lcms2_static'
+                vcxproj = os.path.join(target, '%s.vcxproj' % target)
+                dom = minidom.parse(vcxproj)
+                elements = dom.getElementsByTagName("RuntimeLibrary")
+                runtime_library = {'MT': 'MultiThreaded',
+                                   'MTd': 'MultiThreadedDebug',
+                                   'MD': 'MultiThreadedDLL',
+                                   'MDd': 'MultiThreadedDebugDLL'}.get(str(self.settings.compiler.runtime))
+                for element in elements:
+                    for child in element.childNodes:
+                        if child.nodeType == element.TEXT_NODE:
+                            child.replaceWholeText(runtime_library)
+                with open(vcxproj, 'w') as f:
+                    f.write(dom.toprettyxml())
 
-            vcvars_command = tools.vcvars_command(self.settings)
-            # sometimes upgrading from 2010 to 2012 project fails with non-error exit code
-            try:
-                self.run('%s && devenv lcms2.sln /upgrade' % vcvars_command)
-            except:
-                pass
-            # run build
-            cmd = tools.build_sln_command(self.settings, 'lcms2.sln', upgrade_project=False, targets=[target])
-            if self.settings.arch == 'x86':
-                cmd = cmd.replace('/p:Platform="x86"', '/p:Platform="Win32"')
-            cmd = '%s && %s' % (vcvars_command, cmd)
-            self.output.warn(cmd)
-            self.run(cmd)
+                vcvars_command = tools.vcvars_command(self.settings)
+                # sometimes upgrading from 2010 to 2012 project fails with non-error exit code
+                try:
+                    self.run('%s && devenv lcms2.sln /upgrade' % vcvars_command)
+                except:
+                    pass
+                # run build
+                cmd = tools.build_sln_command(self.settings, 'lcms2.sln', upgrade_project=False, targets=[target])
+                if self.settings.arch == 'x86':
+                    cmd = cmd.replace('/p:Platform="x86"', '/p:Platform="Win32"')
+                cmd = '%s && %s' % (vcvars_command, cmd)
+                self.output.warn(cmd)
+                self.run(cmd)
 
     def build_configure(self):
         env_build = AutoToolsBuildEnvironment(self)
