@@ -12,6 +12,7 @@ class LcmsConan(ConanFile):
     url = "https://github.com/bincrafters/conan-lcms"
     description = "A free, open source, CMM engine."
     license = "MIT"
+    homepage = "http://www.littlecms.com"
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False]}
     default_options = "shared=False"
