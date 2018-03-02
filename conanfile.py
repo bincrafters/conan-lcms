@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from conans import ConanFile, tools, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment
 import os
+import shutil
 from xml.dom import minidom
+from conans import ConanFile, tools, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment
 
 
 class LcmsConan(ConanFile):
@@ -12,6 +13,7 @@ class LcmsConan(ConanFile):
     url = "https://github.com/bincrafters/conan-lcms"
     description = "A free, open source, CMM engine."
     license = "MIT"
+    homepage = "http://www.littlecms.com"
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False]}
     default_options = "shared=False"
@@ -22,11 +24,16 @@ class LcmsConan(ConanFile):
     source_subfolder = "source_subfolder"
 
     def source(self):
-        extracted_dir = 'lcms2-%s' % self.version
-        tools.get("https://downloads.sourceforge.net/project/lcms/lcms/%s/lcms2-%s.tar.gz" % (self.version, self.version))
-        os.rename(extracted_dir, self.source_subfolder)
+        tools.get("https://github.com/mm2/Little-CMS/archive/lcms%s.tar.gz" % self.version)
+        os.rename('Little-CMS-lcms%s' % self.version, self.source_subfolder)
 
     def build_visual_studio(self):
+        # since VS2015 vsnprintf is built-in
+        if int(str(self.settings.compiler.version)) >= 14:
+            tools.replace_in_file(os.path.join(self.source_subfolder, 'src', 'lcms2_internal.h'),
+                    '#       define vsnprintf  _vsnprintf',
+                    '')
+
         env_build = VisualStudioBuildEnvironment(self)
         with tools.environment_append(env_build.vars):
             with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2013')):
@@ -87,6 +94,16 @@ class LcmsConan(ConanFile):
                 self.copy(pattern='*.dll', src=os.path.join(self.source_subfolder, 'bin'), dst='bin', keep_path=False)
             else:
                 self.copy(pattern='*.lib', src=os.path.join(self.source_subfolder, 'Lib', 'MS'), dst='lib', keep_path=False)
+        # remove man pages
+        shutil.rmtree(os.path.join(self.package_folder, 'share', 'man'), ignore_errors=True)
+        # remove binaries
+        for bin_program in ['tificc', 'linkicc', 'transicc', 'psicc', 'jpgicc']:
+            for ext in ['', '.exe']:
+                try:
+                    os.remove(os.path.join(self.package_folder, 'bin', bin_program+ext))
+                except:
+                    pass
+
 
     def package_info(self):
         if self.settings.compiler == 'Visual Studio':
