@@ -87,6 +87,16 @@ class LcmsConan(ConanFile):
                 self.copy(pattern='*.dll', src=os.path.join(self.source_subfolder, 'bin'), dst='bin', keep_path=False)
             else:
                 self.copy(pattern='*.lib', src=os.path.join(self.source_subfolder, 'Lib', 'MS'), dst='lib', keep_path=False)
+        # remove man pages
+        shutil.rmtree(os.path.join(self.package_folder, 'share', 'man'), ignore_errors=True)
+        # remove binaries
+        for bin_program in ['tificc', 'linkicc', 'transicc', 'psicc', 'jpgicc']:
+            for ext in ['', '.exe']:
+                try:
+                    os.remove(os.path.join(self.package_folder, 'bin', bin_program+ext))
+                except:
+                    pass
+
 
     def package_info(self):
         if self.settings.compiler == 'Visual Studio':
