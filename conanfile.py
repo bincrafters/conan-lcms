@@ -29,7 +29,7 @@ class LcmsConan(ConanFile):
 
     def build_visual_studio(self):
         # since VS2015 vsnprintf is built-in
-        if int(self.settings["compiler.version"]) >= 14:
+        if int(self.settings.compiler.version) >= 14:
             tools.replace_in_file(os.path.join(self.source_subfolder, 'src', 'lcms2_internal.h'),
                     '#       define vsnprintf  _vsnprintf',
                     '')
