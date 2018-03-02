@@ -28,6 +28,12 @@ class LcmsConan(ConanFile):
         os.rename('Little-CMS-lcms%s' % self.version, self.source_subfolder)
 
     def build_visual_studio(self):
+        # since VS2015 vsnprintf is built-in
+        if int(self.settings["compiler.version"]) >= 14:
+            tools.replace_in_file(os.path.join(self.source_subfolder, 'src', 'lcms2_internal.h'),
+                    '#       define vsnprintf  _vsnprintf',
+                    '')
+
         env_build = VisualStudioBuildEnvironment(self)
         with tools.environment_append(env_build.vars):
             with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2013')):
