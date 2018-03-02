@@ -23,9 +23,8 @@ class LcmsConan(ConanFile):
     source_subfolder = "source_subfolder"
 
     def source(self):
-        extracted_dir = 'lcms2-%s' % self.version
-        tools.get("https://downloads.sourceforge.net/project/lcms/lcms/%s/lcms2-%s.tar.gz" % (self.version, self.version))
-        os.rename(extracted_dir, self.source_subfolder)
+        tools.get("https://github.com/mm2/Little-CMS/archive/lcms%s.tar.gz" % self.version)
+        os.rename('Little-CMS-lcms%s' % self.version, self.source_subfolder)
 
     def build_visual_studio(self):
         env_build = VisualStudioBuildEnvironment(self)
