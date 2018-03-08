@@ -4,7 +4,8 @@
 import os
 import shutil
 from xml.dom import minidom
-from conans import ConanFile, tools, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment, MSBuild
+
+from conans import ConanFile, tools, AutoToolsBuildEnvironment, MSBuild
 
 
 class LcmsConan(ConanFile):
@@ -29,6 +30,24 @@ class LcmsConan(ConanFile):
         tools.get("https://github.com/mm2/Little-CMS/archive/lcms%s.tar.gz" % self.version)
         os.rename('Little-CMS-lcms%s' % self.version, self.source_subfolder)
 
+    def _patch_vcxproj_runtime(self, vcxproj_path):
+        """"This function should be removed in Conan 1.2 when
+        https://github.com/conan-io/conan/issues/2584 is released.
+        MSBuild() will take care of runtime and other needed flags of CL"""
+        dom = minidom.parse(vcxproj_path)
+        elements = dom.getElementsByTagName("RuntimeLibrary")
+        runtime_library = {'MT': 'MultiThreaded',
+                           'MTd': 'MultiThreadedDebug',
+                           'MD': 'MultiThreadedDLL',
+                           'MDd': 'MultiThreadedDebugDLL'}.get(str(self.settings.compiler.runtime))
+        for element in elements:
+            for child in element.childNodes:
+                if child.nodeType == element.TEXT_NODE:
+                    child.replaceWholeText(runtime_library)
+
+        with open(vcxproj_path, 'w') as f:
+            f.write(dom.toprettyxml())
+
     def build_visual_studio(self):
         # since VS2015 vsnprintf is built-in
         if int(str(self.settings.compiler.version)) >= 14:
@@ -38,23 +57,11 @@ class LcmsConan(ConanFile):
         with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2013')):
             target = 'lcms2_DLL' if self.options.shared else 'lcms2_static'
             vcxproj = os.path.join(target, '%s.vcxproj' % target)
-            dom = minidom.parse(vcxproj)
-            elements = dom.getElementsByTagName("RuntimeLibrary")
-            runtime = str(self.settings.compiler.runtime)
-            runtime_library = {'MT': 'MultiThreaded',
-                               'MTd': 'MultiThreadedDebug',
-                               'MD': 'MultiThreadedDLL',
-                               'MDd': 'MultiThreadedDebugDLL'}.get(runtime)
-            for element in elements:
-                for child in element.childNodes:
-                    if child.nodeType == element.TEXT_NODE:
-                        child.replaceWholeText(runtime_library)
-            with open(vcxproj, 'w') as f:
-                f.write(dom.toprettyxml())
-
+            self._patch_vcxproj_runtime(vcxproj)
+            update_project = True if int(str(self.settings.compiler.version)) > 12 else False
             # run build
             msbuild = MSBuild(self)
-            msbuild.build("lcms2.sln", targets=[target], platforms={"x86": "Win32"})
+            msbuild.build("lcms2.sln", targets=[target], platforms={"x86": "Win32"}, upgrade_project=update_project)
 
     def build_configure(self):
         env_build = AutoToolsBuildEnvironment(self)
