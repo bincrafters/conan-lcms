@@ -20,8 +20,10 @@ class LcmsConan(ConanFile):
     exports = ["LICENSE.md"]
     exports_sources = ["FindLCMS2.cmake"]
     generators = "cmake"
-
     source_subfolder = "source_subfolder"
+
+    def configure(self):
+        del self.settings.compiler.libcxx
 
     def source(self):
         tools.get("https://github.com/mm2/Little-CMS/archive/lcms%s.tar.gz" % self.version)
@@ -30,9 +32,8 @@ class LcmsConan(ConanFile):
     def build_visual_studio(self):
         # since VS2015 vsnprintf is built-in
         if int(str(self.settings.compiler.version)) >= 14:
-            tools.replace_in_file(os.path.join(self.source_subfolder, 'src', 'lcms2_internal.h'),
-                    '#       define vsnprintf  _vsnprintf',
-                    '')
+            path = os.path.join(self.source_subfolder, 'src', 'lcms2_internal.h')
+            tools.replace_in_file(path, '#       define vsnprintf  _vsnprintf', '')
 
         env_build = VisualStudioBuildEnvironment(self)
         with tools.environment_append(env_build.vars):
@@ -41,10 +42,11 @@ class LcmsConan(ConanFile):
                 vcxproj = os.path.join(target, '%s.vcxproj' % target)
                 dom = minidom.parse(vcxproj)
                 elements = dom.getElementsByTagName("RuntimeLibrary")
+                runtime = str(self.settings.compiler.runtime)
                 runtime_library = {'MT': 'MultiThreaded',
                                    'MTd': 'MultiThreadedDebug',
                                    'MD': 'MultiThreadedDLL',
-                                   'MDd': 'MultiThreadedDebugDLL'}.get(str(self.settings.compiler.runtime))
+                                   'MDd': 'MultiThreadedDebugDLL'}.get(runtime)
                 for element in elements:
                     for child in element.childNodes:
                         if child.nodeType == element.TEXT_NODE:
@@ -59,9 +61,9 @@ class LcmsConan(ConanFile):
                 except:
                     pass
                 # run build
-                cmd = tools.build_sln_command(self.settings, 'lcms2.sln', upgrade_project=False, targets=[target])
-                if self.settings.arch == 'x86':
-                    cmd = cmd.replace('/p:Platform="x86"', '/p:Platform="Win32"')
+                cmd = tools.build_sln_command(self.settings, 'lcms2.sln',
+                                              upgrade_project=False, targets=[target],
+                                              platforms={"x86": "Win32"})
                 cmd = '%s && %s' % (vcvars_command, cmd)
                 self.output.warn(cmd)
                 self.run(cmd)
@@ -103,7 +105,6 @@ class LcmsConan(ConanFile):
                     os.remove(os.path.join(self.package_folder, 'bin', bin_program+ext))
                 except:
                     pass
-
 
     def package_info(self):
         if self.settings.compiler == 'Visual Studio':
