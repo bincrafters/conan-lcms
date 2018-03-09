@@ -3,8 +3,8 @@
 
 import os
 import shutil
-from xml.dom import minidom
-from conans import ConanFile, tools, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment
+
+from conans import ConanFile, tools, AutoToolsBuildEnvironment, MSBuild
 
 
 class LcmsConan(ConanFile):
@@ -20,51 +20,48 @@ class LcmsConan(ConanFile):
     exports = ["LICENSE.md"]
     exports_sources = ["FindLCMS2.cmake"]
     generators = "cmake"
-
     source_subfolder = "source_subfolder"
+
+    def configure(self):
+        del self.settings.compiler.libcxx
 
     def source(self):
         tools.get("https://github.com/mm2/Little-CMS/archive/lcms%s.tar.gz" % self.version)
         os.rename('Little-CMS-lcms%s' % self.version, self.source_subfolder)
 
+    def _patch_vcxproj_runtime(self, vcxproj_path):
+        from xml.dom import minidom
+        """"This function should be removed in Conan 1.2 when
+        https://github.com/conan-io/conan/issues/2584 is released.
+        MSBuild() will take care of runtime and other needed flags of CL"""
+        dom = minidom.parse(vcxproj_path)
+        elements = dom.getElementsByTagName("RuntimeLibrary")
+        runtime_library = {'MT': 'MultiThreaded',
+                           'MTd': 'MultiThreadedDebug',
+                           'MD': 'MultiThreadedDLL',
+                           'MDd': 'MultiThreadedDebugDLL'}.get(str(self.settings.compiler.runtime))
+        for element in elements:
+            for child in element.childNodes:
+                if child.nodeType == element.TEXT_NODE:
+                    child.replaceWholeText(runtime_library)
+
+        with open(vcxproj_path, 'w') as f:
+            f.write(dom.toprettyxml())
+
     def build_visual_studio(self):
         # since VS2015 vsnprintf is built-in
         if int(str(self.settings.compiler.version)) >= 14:
-            tools.replace_in_file(os.path.join(self.source_subfolder, 'src', 'lcms2_internal.h'),
-                    '#       define vsnprintf  _vsnprintf',
-                    '')
+            path = os.path.join(self.source_subfolder, 'src', 'lcms2_internal.h')
+            tools.replace_in_file(path, '#       define vsnprintf  _vsnprintf', '')
 
-        env_build = VisualStudioBuildEnvironment(self)
-        with tools.environment_append(env_build.vars):
-            with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2013')):
-                target = 'lcms2_DLL' if self.options.shared else 'lcms2_static'
-                vcxproj = os.path.join(target, '%s.vcxproj' % target)
-                dom = minidom.parse(vcxproj)
-                elements = dom.getElementsByTagName("RuntimeLibrary")
-                runtime_library = {'MT': 'MultiThreaded',
-                                   'MTd': 'MultiThreadedDebug',
-                                   'MD': 'MultiThreadedDLL',
-                                   'MDd': 'MultiThreadedDebugDLL'}.get(str(self.settings.compiler.runtime))
-                for element in elements:
-                    for child in element.childNodes:
-                        if child.nodeType == element.TEXT_NODE:
-                            child.replaceWholeText(runtime_library)
-                with open(vcxproj, 'w') as f:
-                    f.write(dom.toprettyxml())
-
-                vcvars_command = tools.vcvars_command(self.settings)
-                # sometimes upgrading from 2010 to 2012 project fails with non-error exit code
-                try:
-                    self.run('%s && devenv lcms2.sln /upgrade' % vcvars_command)
-                except:
-                    pass
-                # run build
-                cmd = tools.build_sln_command(self.settings, 'lcms2.sln', upgrade_project=False, targets=[target])
-                if self.settings.arch == 'x86':
-                    cmd = cmd.replace('/p:Platform="x86"', '/p:Platform="Win32"')
-                cmd = '%s && %s' % (vcvars_command, cmd)
-                self.output.warn(cmd)
-                self.run(cmd)
+        with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2013')):
+            target = 'lcms2_DLL' if self.options.shared else 'lcms2_static'
+            vcxproj = os.path.join(target, '%s.vcxproj' % target)
+            self._patch_vcxproj_runtime(vcxproj)
+            upgrade_project = True if int(str(self.settings.compiler.version)) > 12 else False
+            # run build
+            msbuild = MSBuild(self)
+            msbuild.build("lcms2.sln", targets=[target], platforms={"x86": "Win32"}, upgrade_project=upgrade_project)
 
     def build_configure(self):
         env_build = AutoToolsBuildEnvironment(self)
@@ -103,7 +100,6 @@ class LcmsConan(ConanFile):
                     os.remove(os.path.join(self.package_folder, 'bin', bin_program+ext))
                 except:
                     pass
-
 
     def package_info(self):
         if self.settings.compiler == 'Visual Studio':
