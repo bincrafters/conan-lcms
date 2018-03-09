@@ -30,10 +30,10 @@ class LcmsConan(ConanFile):
         os.rename('Little-CMS-lcms%s' % self.version, self.source_subfolder)
 
     def _patch_vcxproj_runtime(self, vcxproj_path):
-        from xml.dom import minidom
         """"This function should be removed in Conan 1.2 when
         https://github.com/conan-io/conan/issues/2584 is released.
         MSBuild() will take care of runtime and other needed flags of CL"""
+        from xml.dom import minidom
         dom = minidom.parse(vcxproj_path)
         elements = dom.getElementsByTagName("RuntimeLibrary")
         runtime_library = {'MT': 'MultiThreaded',
