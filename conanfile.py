@@ -29,25 +29,6 @@ class LcmsConan(ConanFile):
         tools.get("https://github.com/mm2/Little-CMS/archive/lcms%s.tar.gz" % self.version)
         os.rename('Little-CMS-lcms%s' % self.version, self.source_subfolder)
 
-    def _patch_vcxproj_runtime(self, vcxproj_path):
-        """"This function should be removed in Conan 1.2 when
-        https://github.com/conan-io/conan/issues/2584 is released.
-        MSBuild() will take care of runtime and other needed flags of CL"""
-        from xml.dom import minidom
-        dom = minidom.parse(vcxproj_path)
-        elements = dom.getElementsByTagName("RuntimeLibrary")
-        runtime_library = {'MT': 'MultiThreaded',
-                           'MTd': 'MultiThreadedDebug',
-                           'MD': 'MultiThreadedDLL',
-                           'MDd': 'MultiThreadedDebugDLL'}.get(str(self.settings.compiler.runtime))
-        for element in elements:
-            for child in element.childNodes:
-                if child.nodeType == element.TEXT_NODE:
-                    child.replaceWholeText(runtime_library)
-
-        with open(vcxproj_path, 'w') as f:
-            f.write(dom.toprettyxml())
-
     def build_visual_studio(self):
         # since VS2015 vsnprintf is built-in
         if int(str(self.settings.compiler.version)) >= 14:
@@ -56,8 +37,6 @@ class LcmsConan(ConanFile):
 
         with tools.chdir(os.path.join(self.source_subfolder, 'Projects', 'VC2013')):
             target = 'lcms2_DLL' if self.options.shared else 'lcms2_static'
-            vcxproj = os.path.join(target, '%s.vcxproj' % target)
-            self._patch_vcxproj_runtime(vcxproj)
             upgrade_project = True if int(str(self.settings.compiler.version)) > 12 else False
             # run build
             msbuild = MSBuild(self)
