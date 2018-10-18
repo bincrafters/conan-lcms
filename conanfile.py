@@ -15,12 +15,16 @@ class LcmsConan(ConanFile):
     license = "MIT"
     homepage = "http://www.littlecms.com"
     settings = "os", "arch", "compiler", "build_type"
-    options = {"shared": [True, False]}
-    default_options = "shared=False"
+    options = {"shared": [True, False], "fPIC": [True, False]}
+    default_options = {"shared": False, "fPIC": True }
     exports = ["LICENSE.md"]
     exports_sources = ["FindLCMS2.cmake"]
     generators = "cmake"
     source_subfolder = "source_subfolder"
+
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.fPIC
 
     def configure(self):
         del self.settings.compiler.libcxx
