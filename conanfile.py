@@ -13,7 +13,9 @@ class LcmsConan(ConanFile):
     url = "https://github.com/bincrafters/conan-lcms"
     description = "A free, open source, CMM engine."
     license = "MIT"
-    homepage = "http://www.littlecms.com"
+    homepage = "https://github.com/mm2/Little-CMS"
+    author = "Bicrafters <bincrafters@gmail.com>"
+    topics = ("conan", "lcms", "cmm", "icc", "cmm-engine")
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {'shared': False, 'fPIC': True}
@@ -30,7 +32,8 @@ class LcmsConan(ConanFile):
         del self.settings.compiler.libcxx
 
     def source(self):
-        tools.get("https://github.com/mm2/Little-CMS/archive/lcms%s.tar.gz" % self.version)
+        sha256 = "8e23a09dc81af856db37941a4ea26acdf6a45b0281ec5b7ee94b5a4e9f7afbf7"
+        tools.get("{}/archive/lcms{}.tar.gz".format(self.homepage, self.version), sha256=sha256)
         os.rename('Little-CMS-lcms%s' % self.version, self._source_subfolder)
 
     def _build_visual_studio(self):
