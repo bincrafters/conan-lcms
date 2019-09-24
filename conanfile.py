@@ -54,7 +54,7 @@ class LcmsConan(ConanFile):
             msbuild.build("lcms2.sln", targets=[target], platforms={"x86": "Win32"}, upgrade_project=upgrade_project)
 
     def _build_configure(self):
-        if self.settings.os == "Android":
+        if self.settings.os == "Android" and tools.os_info.is_windows:
             tools.replace_in_file(os.path.join(self._source_subfolder, 'configure'),
                 "s/[	 `~#$^&*(){}\\\\|;'\\\''\"<>?]/\\\\&/g", "s/[	 `~#$^&*(){}\\\\|;<>?]/\\\\&/g")
         env_build = AutoToolsBuildEnvironment(self, win_bash=tools.os_info.is_windows)
